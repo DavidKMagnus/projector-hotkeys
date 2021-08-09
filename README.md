@@ -1,5 +1,5 @@
 # OBS Projector Hotkeys
-Allows the setting of hotkeys to open fullscreen projectors in OBS.
+Allows the setting of hotkeys to open fullscreen projectors in OBS, and for projectors to be opened to specific windows on startup.
 
 ## Limitations
 - Due to the limitations of the OBS frontend API, projectors can only be opened and not closed

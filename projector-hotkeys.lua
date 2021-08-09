@@ -10,33 +10,47 @@ PROJECTOR_TYPE_MULTIVIEW = "Multiview"
 DEFAULT_MONITOR = 1
 
 PROGRAM = "Program Output"
+GROUP = "gp"
+STARTUP = "su"
 
 monitors = {}
+startup_projectors = {}
 hotkey_ids = {}
 
 function script_description()
     local description = [[
         <center><h2>Fullscreen Projector Hotkeys</h2></center>
-        <p>Hotkeys will be added for the Program, Multiview, and each currently existing scene.
-        Choose the monitor to which each output will be projected when the hotkey is pressed.</p>]]
-    
+        <p>Hotkeys will be added for the Program output and each currently existing scene.
+        Choose the monitor to which each output will be projected when the hotkey is pressed.</p>
+        <p>You can also choose to open a projector to a specific monitor on startup. If you use
+        this option, you may need to disable the "Save projectors on exit" preference or there
+        will be duplicate projectors.</p>
+        <p><b>If new scenes are added, or if scene names change, this script will need to be
+        reloaded.</b></p>]]
+
     return description
 end
 
 function script_properties()
 	local p = obslua.obs_properties_create()
-    
-    obslua.obs_properties_add_int(p, PROGRAM, "Project the Program to monitor:", 1, 10, 1)
+
+    local gp = obslua.obs_properties_create()
+    obslua.obs_properties_add_group(p, PROGRAM .. GROUP, "Program Output", obslua.OBS_GROUP_NORMAL, gp)
+    obslua.obs_properties_add_int(gp, PROGRAM, "Project to monitor:", 1, 10, 1)
+    obslua.obs_properties_add_bool(gp, PROGRAM .. STARTUP, "Open on Startup")
 
     -- loop through each scene and create a control for choosing the monitor
     local scenes = obslua.obs_frontend_get_scene_names()
     if scenes ~= nil then
         for _, scene in ipairs(scenes) do
-            obslua.obs_properties_add_int(p, scene, "Project '" .. scene .. "' to monitor:", 1, 10, 1)
+            local gp = obslua.obs_properties_create()
+            obslua.obs_properties_add_group(p, scene .. GROUP, scene, obslua.OBS_GROUP_NORMAL, gp)
+            obslua.obs_properties_add_int(gp, scene, "Project to monitor:", 1, 10, 1)
+            obslua.obs_properties_add_bool(gp, scene .. STARTUP, "Open on Startup")
         end
         obslua.bfree(scene)
     end
-    
+
 	return p
 end
 
@@ -54,6 +68,7 @@ function script_load(settings)
                 if e == obslua.OBS_FRONTEND_EVENT_FINISHED_LOADING then
                     update_monitor_preferences(settings)
                     register_hotkeys(settings)
+                    open_startup_projectors()
                     obslua.remove_current_callback()
                 end
             end
@@ -76,15 +91,18 @@ end
 function update_monitor_preferences(settings)
     local outputs = obslua.obs_frontend_get_scene_names()
     table.insert(outputs, PROGRAM)
-    
+
     for _, output in ipairs(outputs) do
         local monitor = obslua.obs_data_get_int(settings, output)
         if monitor == nil or monitor == 0 then
             monitor = DEFAULT_MONITOR
         end
-        
+
         -- monitors are 0 indexed here, but 1-indexed in the OBS menus
         monitors[output] = monitor-1
+
+        -- set which projectors should open on start up
+        startup_projectors[output] = obslua.obs_data_get_bool(settings, output .. STARTUP)
     end
     obslua.bfree(output)
 end
@@ -93,7 +111,7 @@ end
 function register_hotkeys(settings)
     local outputs = obslua.obs_frontend_get_scene_names()
     table.insert(outputs, PROGRAM)
-    
+
     for _, output in ipairs(outputs) do
         hotkey_ids[output] = obslua.obs_hotkey_register_frontend(
             output_to_function_name(output),
@@ -102,28 +120,41 @@ function register_hotkeys(settings)
                 if not pressed then
                     return
                 end
-                
-                -- set the default monitor if one was never set
-                if monitors[output] == nil then
-                    monitors[output] = DEFAULT_MONITOR
-                end
-                
-                -- set the projector type if this is not a normal scene
-                local projector_type = PROJECTOR_TYPE_SCENE
-                if output == PROGRAM then
-                    projector_type = PROJECTOR_TYPE_PROGRAM
-                end
-                
-                -- call the frontend API to open the projector
-                obslua.obs_frontend_open_projector(projector_type, monitors[output], "", output)
+                open_fullscreen_projector(output)
             end
         )
-        
+
         local hotkey_save_array = obslua.obs_data_get_array(settings, output_to_function_name(output))
         obslua.obs_hotkey_load(hotkey_ids[output], hotkey_save_array)
         obslua.obs_data_array_release(hotkey_save_array)
     end
     obslua.bfree(output)
+end
+
+-- open a full screen projector
+function open_fullscreen_projector(output)
+     -- set the default monitor if one was never set
+    if monitors[output] == nil then
+        monitors[output] = DEFAULT_MONITOR
+    end
+
+    -- set the projector type if this is not a normal scene
+    local projector_type = PROJECTOR_TYPE_SCENE
+    if output == PROGRAM then
+        projector_type = PROJECTOR_TYPE_PROGRAM
+    end
+
+    -- call the front end API to open the projector
+    obslua.obs_frontend_open_projector(projector_type, monitors[output], "", output)
+end
+
+-- open startup projectors
+function open_startup_projectors()
+    for output, open_on_startup in pairs(startup_projectors) do
+        if open_on_startup then
+            open_fullscreen_projector(output)
+        end
+    end
 end
 
 -- remove special characters from scene names to make them useable as function names
