@@ -32,14 +32,15 @@ function script_description()
 end
 
 function script_properties()
-	local p = obslua.obs_properties_create()
+    local p = obslua.obs_properties_create()
 
+    -- set up the controls for the Program Output
     local gp = obslua.obs_properties_create()
     obslua.obs_properties_add_group(p, PROGRAM .. GROUP, "Program Output", obslua.OBS_GROUP_NORMAL, gp)
     obslua.obs_properties_add_int(gp, PROGRAM, "Project to monitor:", 1, 10, 1)
     obslua.obs_properties_add_bool(gp, PROGRAM .. STARTUP, "Open on Startup")
 
-    -- loop through each scene and create a control for choosing the monitor
+    -- loop through each scene and create a property group and control for choosing the monitor and startup settings
     local scenes = obslua.obs_frontend_get_scene_names()
     if scenes ~= nil then
         for _, scene in ipairs(scenes) do
@@ -62,7 +63,7 @@ function script_load(settings)
     local scenes = obslua.obs_frontend_get_scene_names()
     if scenes == nil or #scenes == 0 then
         -- on obs startup, scripts are loaded before scenes are finished loading
-        -- register a callback to register the hotkeys once scenes are available
+        -- register a callback to register the hotkeys and open startup projectors after scenes are available
         obslua.obs_frontend_add_event_callback(
             function(e)
                 if e == obslua.OBS_FRONTEND_EVENT_FINISHED_LOADING then
@@ -74,6 +75,7 @@ function script_load(settings)
             end
         )
     else
+        -- this runs when the script is loaded or reloaded from the settings window
         update_monitor_preferences(settings)
         register_hotkeys(settings)
     end    
@@ -157,7 +159,7 @@ function open_startup_projectors()
     end
 end
 
--- remove special characters from scene names to make them useable as function names
+-- remove special characters from scene names to make them usable as function names
 function output_to_function_name(name)
     return "ofsp_" .. name:gsub('[%p%c%s]', '_')
 end
