@@ -14,4 +14,4 @@ Thanks to *bfxdev* for [OBS Lua Tips and Tricks](https://obsproject.com/forum/th
 
 ## Configuration
 After the script is loaded, the monitor for each output should be selected.
-Hotkeys will be avaiable in OBS settings for the Program output and for each scene.
+Hotkeys will be avaiable in OBS settings for the Program output, Multiview, and for each scene.

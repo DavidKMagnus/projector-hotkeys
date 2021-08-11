@@ -10,6 +10,7 @@ PROJECTOR_TYPE_MULTIVIEW = "Multiview"
 DEFAULT_MONITOR = 1
 
 PROGRAM = "Program Output"
+MULTIVIEW = "Multiview Output"
 GROUP = "gp"
 STARTUP = "su"
 
@@ -20,7 +21,7 @@ hotkey_ids = {}
 function script_description()
     local description = [[
         <center><h2>Fullscreen Projector Hotkeys</h2></center>
-        <p>Hotkeys will be added for the Program output and each currently existing scene.
+        <p>Hotkeys will be added for the Program output, Multiview, and each currently existing scene.
         Choose the monitor to which each output will be projected when the hotkey is pressed.</p>
         <p>You can also choose to open a projector to a specific monitor on startup. If you use
         this option, you may need to disable the "Save projectors on exit" preference or there
@@ -39,6 +40,12 @@ function script_properties()
     obslua.obs_properties_add_group(p, PROGRAM .. GROUP, "Program Output", obslua.OBS_GROUP_NORMAL, gp)
     obslua.obs_properties_add_int(gp, PROGRAM, "Project to monitor:", 1, 10, 1)
     obslua.obs_properties_add_bool(gp, PROGRAM .. STARTUP, "Open on Startup")
+
+    -- set up the controls for the Multiview
+    local gp = obslua.obs_properties_create()
+    obslua.obs_properties_add_group(p, MULTIVIEW .. GROUP, "Multiview", obslua.OBS_GROUP_NORMAL, gp)
+    obslua.obs_properties_add_int(gp, MULTIVIEW, "Project to monitor:", 1, 10, 1)
+    obslua.obs_properties_add_bool(gp, MULTIVIEW .. STARTUP, "Open on Startup")
 
     -- loop through each scene and create a property group and control for choosing the monitor and startup settings
     local scenes = obslua.obs_frontend_get_scene_names()
@@ -92,6 +99,7 @@ end
 -- find the monitor preferences for each projector and store them
 function update_monitor_preferences(settings)
     local outputs = obslua.obs_frontend_get_scene_names()
+    table.insert(outputs, MULTIVIEW)
     table.insert(outputs, PROGRAM)
 
     for _, output in ipairs(outputs) do
@@ -112,6 +120,7 @@ end
 -- register a hotkey to open a projector for each output
 function register_hotkeys(settings)
     local outputs = obslua.obs_frontend_get_scene_names()
+    table.insert(outputs, MULTIVIEW)
     table.insert(outputs, PROGRAM)
 
     for _, output in ipairs(outputs) do
@@ -144,6 +153,8 @@ function open_fullscreen_projector(output)
     local projector_type = PROJECTOR_TYPE_SCENE
     if output == PROGRAM then
         projector_type = PROJECTOR_TYPE_PROGRAM
+    elseif output == MULTIVIEW then
+        projector_type = PROJECTOR_TYPE_MULTIVIEW
     end
 
     -- call the front end API to open the projector
