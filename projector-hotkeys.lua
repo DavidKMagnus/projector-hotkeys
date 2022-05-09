@@ -13,9 +13,11 @@ PROGRAM = "Program Output"
 MULTIVIEW = "Multiview Output"
 GROUP = "gp"
 STARTUP = "su"
+DOUBLE = "db"
 
 monitors = {}
 startup_projectors = {}
+double_startup = {}
 hotkey_ids = {}
 
 function script_description()
@@ -26,6 +28,10 @@ function script_description()
         <p>You can also choose to open a projector to a specific monitor on startup. If you use
         this option, you may need to disable the "Save projectors on exit" preference or there
         will be duplicate projectors.</p>
+        <p>Some OBS users report that projectors opened on startup can be blank grey screens.
+        Using the option "Open Again on Startup" will open a duplicate projector that seems
+        to have the expected content. This option may solve grey screen problem, but will leave
+        the original empty projector open behind the working projector.</p>
         <p><b>If new scenes are added, or if scene names change, this script will need to be
         reloaded.</b></p>]]
 
@@ -40,12 +46,14 @@ function script_properties()
     obslua.obs_properties_add_group(p, PROGRAM .. GROUP, "Program Output", obslua.OBS_GROUP_NORMAL, gp)
     obslua.obs_properties_add_int(gp, PROGRAM, "Project to monitor:", 1, 10, 1)
     obslua.obs_properties_add_bool(gp, PROGRAM .. STARTUP, "Open on Startup")
+    obslua.obs_properties_add_bool(gp, PROGRAM .. DOUBLE, "Open Again on Startup")
 
     -- set up the controls for the Multiview
     local gp = obslua.obs_properties_create()
     obslua.obs_properties_add_group(p, MULTIVIEW .. GROUP, "Multiview", obslua.OBS_GROUP_NORMAL, gp)
     obslua.obs_properties_add_int(gp, MULTIVIEW, "Project to monitor:", 1, 10, 1)
     obslua.obs_properties_add_bool(gp, MULTIVIEW .. STARTUP, "Open on Startup")
+    obslua.obs_properties_add_bool(gp, MULTIVIEW .. DOUBLE, "Open Again on Startup")
 
     -- loop through each scene and create a property group and control for choosing the monitor and startup settings
     local scenes = obslua.obs_frontend_get_scene_names()
@@ -55,6 +63,7 @@ function script_properties()
             obslua.obs_properties_add_group(p, scene .. GROUP, scene, obslua.OBS_GROUP_NORMAL, gp)
             obslua.obs_properties_add_int(gp, scene, "Project to monitor:", 1, 10, 1)
             obslua.obs_properties_add_bool(gp, scene .. STARTUP, "Open on Startup")
+            obslua.obs_properties_add_bool(gp, scene .. DOUBLE, "Open Again on Startup")
         end
         obslua.bfree(scene)
     end
@@ -113,6 +122,9 @@ function update_monitor_preferences(settings)
 
         -- set which projectors should open on start up
         startup_projectors[output] = obslua.obs_data_get_bool(settings, output .. STARTUP)
+
+        -- set which projectors should open duplicates on start up
+        double_startup[output] = obslua.obs_data_get_bool(settings, output .. DOUBLE)
     end
     obslua.bfree(output)
 end
@@ -165,6 +177,12 @@ end
 function open_startup_projectors()
     for output, open_on_startup in pairs(startup_projectors) do
         if open_on_startup then
+            open_fullscreen_projector(output)
+        end
+    end
+    -- check again for any that should be opened twice
+    for output, open_twice in pairs(double_startup) do
+        if open_twice then
             open_fullscreen_projector(output)
         end
     end
